@@ -1,0 +1,29 @@
+name: Debug SSH (Simple Auth Key)
+
+on: workflow_dispatch
+
+jobs:
+  tuyul-session:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Setup Tailscale
+        uses: tailscale/github-action@v2
+        with:
+          authkey: ${{ secrets.TAILSCALE_AUTHKEY }}
+          hostname: "gh-runner-simple"
+
+      - name: Info & IP
+        run: |
+          echo "✅ Konek via Auth Key sukses!"
+          tailscale ip -4
+          echo "User: runner"
+          sudo ps aux | grep tailscaled
+
+      - name: Tahan Session (Loop)
+        run: |
+          echo "🚀 Gass SSH ke IP di atas sekarang!"
+          echo "Command di PC lu: ssh runner@<IP-TAILSCALE>"
+          touch keep_alive
+          while [ -f keep_alive ]; do sleep 60; done
+        timeout-minutes: 60
