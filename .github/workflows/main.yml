@@ -12,14 +12,29 @@ jobs:
         with:
           authkey: ${{ secrets.TAILSCALE_AUTHKEY }}
           hostname: "gh-runner-simple"
-
+          
       - name: Info & IP
         run: |
           echo "✅ Konek via Auth Key sukses!"
           tailscale ip -4
           echo "User: runner"
           sudo ps aux | grep tailscaled
-
+      - name: Setup Password & SSH Config
+        run: |
+          # 1. Set password user 'runner' jadi '123' (ganti sesuka lu)
+          echo "runner:123" | sudo chpasswd
+          
+          # 2. Install SSH Server (jaga-jaga kalo belum ada)
+          sudo apt-get update -y
+          sudo apt-get install -y openssh-server
+          
+          # 3. Paksa bolehin login pake password
+          sudo sed -i 's/#PasswordAuthentication yes/PasswordAuthentication yes/' /etc/ssh/sshd_config
+          sudo sed -i 's/PasswordAuthentication no/PasswordAuthentication yes/' /etc/ssh/sshd_config
+          
+          # 4. Restart service SSH biar ngefek
+          sudo service ssh restart
+          
       - name: Tahan Session (Loop)
         run: |
           echo "🚀 Gass SSH ke IP di atas sekarang!"
