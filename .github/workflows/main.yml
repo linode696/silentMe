@@ -22,7 +22,7 @@ jobs:
       - name: Setup Tailscale
         uses: tailscale/github-action@v2
         with:
-          authkey: ${{ secrets.TAILSCALE_AUTHKEY }}
+          authkey: ${{ secrets.TAILSCALE_AUTH_KEY }}
           hostname: "gh-runner-fix"
           # INI PENTING: Kalo key lu ada tag-nya, ini wajib ada!
           args: --advertise-tags=tag:ci
