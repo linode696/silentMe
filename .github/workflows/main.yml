@@ -1,43 +1,70 @@
-name: Debug SSH (Fix Version)
+name: Cloudflare SSH + Debian 12 Lab
 
 on: workflow_dispatch
 
 jobs:
-  tuyul-ngamuk:
+  lab-wibu:
     runs-on: ubuntu-latest
-    
+
     steps:
-      - name: Setup Password User
+      # 1. Setup Password User & SSH Server
+      - name: Setup SSH & Password
         run: |
-          # Kita set password dulu sebelum tailscale jalan
+          # Set password runner jadi 123
           echo "runner:123" | sudo chpasswd
+          
+          # Install & Config SSH
           sudo apt-get update
           sudo apt-get install -y openssh-server
-          # Jebol config ssh biar boleh pass login
+          
+          # Paksa bolehin password login
           sudo sed -i 's/#PasswordAuthentication yes/PasswordAuthentication yes/' /etc/ssh/sshd_config
           sudo sed -i 's/PasswordAuthentication no/PasswordAuthentication yes/' /etc/ssh/sshd_config
           sudo service ssh restart
-          echo "✅ Password user 'runner' udah diset jadi '123'"
+          echo "✅ SSH Ready. User: runner | Pass: 123"
 
-      - name: Setup Tailscale
-        uses: tailscale/github-action@v2
-        with:
-          authkey: ${{ secrets.TAILSCALE_AUTH_KEY }}
-          hostname: "gh-runner-fix"
-          # INI PENTING: Kalo key lu ada tag-nya, ini wajib ada!
-          args: --advertise-tags=tag:ci
-
-      - name: Cek Status
+      # 2. Spawn Debian 12 Container (Biar pas lu masuk lgsg ada)
+      - name: Start Debian 12 Container
         run: |
-          echo "🔥 Konek!"
-          tailscale ip -4
-          echo "User: runner"
-          echo "Pass: 123"
+          # Jalanin Debian 12 mode background (detached)
+          # Pake --net host biar gampang akses internet
+          # Pake --privileged biar lu leluasa opreknya
+          docker run -itd \
+            --name debian-sakti \
+            --privileged \
+            --net host \
+            debian:12 \
+            bash
+            
+          echo "✅ Container 'debian-sakti' udah jalan!"
 
-      - name: Tahan Session (1 Jam)
+      # 3. Jalanin Cloudflare Tunnel
+      - name: Start Cloudflared
         run: |
-          echo "🚀 Buruan SSH!"
-          echo "ssh runner@<IP-TAILSCALE>"
+          # Download Cloudflared
+          curl -L --output cloudflared.deb https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
+          sudo dpkg -i cloudflared.deb
+          
+          # Install Service pake Token lu
+          sudo cloudflared service install ${{ secrets.CF_TOKEN }}
+          
+          # Start Service
+          sudo service cloudflared start
+          echo "🚀 Tunnel Konek! Cek domain yg lu set di dashboard Cloudflare."
+
+      # 4. Tahan Session (Looping 6 Jam)
+      - name: Keep Alive Loop
+        run: |
+          echo "⛔ MASUK SEKARANG!"
+          echo "SSH User: runner"
+          echo "SSH Pass: 123"
+          echo "Host: (Domain yg lu setting di Cloudflare)"
+          echo "=============================================="
+          echo "💡 TIPS: Pas udah login SSH, ketik:"
+          echo "   docker exec -it debian-sakti bash"
+          echo "   (Buat masuk ke Debian 12 lu)"
+          echo "=============================================="
+          
           touch keep_alive
           while [ -f keep_alive ]; do sleep 60; done
-        timeout-minutes: 60
+        timeout-minutes: 360
